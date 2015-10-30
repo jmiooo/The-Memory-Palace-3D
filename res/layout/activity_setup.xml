@@ -1,0 +1,50 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    		  android:gravity="center"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:layout_marginBottom="30dp"
+              android:orientation="vertical" >
+	 
+     <Button
+	     android:layout_height="wrap_content"
+	     android:layout_width="300dp"
+	     android:layout_marginTop="10dp"
+	     android:text="@string/match"
+	     android:onClick="startMatch" />
+     
+     <Button
+	     android:layout_height="wrap_content"
+	     android:layout_width="300dp"
+	     android:layout_marginTop="10dp"
+	     android:text="@string/entry"
+	     android:onClick="startEntry" />
+     
+     <Button
+	     android:layout_height="wrap_content"
+	     android:layout_width="300dp"
+	     android:layout_marginTop="10dp"
+	     android:text="@string/delete"
+	     android:onClick="deletePath" />
+     
+     <Button
+	     android:layout_height="wrap_content"
+	     android:layout_width="300dp"
+	     android:layout_marginTop="10dp"
+	     android:text="@string/select"
+	     android:onClick="selectPath" />
+     
+     <Button
+	     android:layout_height="wrap_content"
+	     android:layout_width="300dp"
+	     android:layout_marginTop="10dp"
+	     android:text="@string/random"
+	     android:onClick="randomPath" />
+     
+     <Button
+	     android:layout_height="wrap_content"
+	     android:layout_width="300dp"
+	     android:layout_marginTop="10dp"
+	     android:text="@string/prompt"
+	     android:onClick="promptPath" />
+
+</LinearLayout>

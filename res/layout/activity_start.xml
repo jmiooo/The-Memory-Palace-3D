@@ -1,0 +1,28 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    		  android:gravity="center"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical" >
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="50dp"
+        android:text="@string/title"
+        android:textSize="35sp" />
+    
+     <Button
+	     android:layout_height="wrap_content"
+	     android:layout_width="300dp"
+	     android:layout_marginTop="10dp"
+	     android:text="@string/impossible"
+	     android:onClick="startImpossible" />
+     
+     <Button
+	     android:layout_height="wrap_content"
+	     android:layout_width="300dp"
+	     android:layout_marginTop="10dp"
+	     android:text="@string/non_impossible"
+	     android:onClick="startNonImpossible" />
+
+</LinearLayout>

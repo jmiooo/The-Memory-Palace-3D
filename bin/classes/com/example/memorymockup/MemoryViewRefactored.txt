@@ -1,0 +1,334 @@
+package com.example.memorymockup;
+
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Random;
+
+import android.content.Context;
+import android.graphics.Camera;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Matrix;
+import android.graphics.Paint;
+import android.graphics.Paint.Style;
+import android.graphics.Path;
+import android.graphics.drawable.ShapeDrawable;
+import android.graphics.drawable.shapes.OvalShape;
+import android.graphics.drawable.shapes.RectShape;
+import android.util.AttributeSet;
+import android.view.View;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
+import com.example.memorymockup.RoomUtility.*;
+
+public class MemoryView extends View {
+	public static final int centerX = 550;
+	public static final int centerY = 700;
+	public static final int tileSize = 140;
+	public static final int tileGridSize = 6;
+	
+	//public ShapeDrawable background;
+	//public ShapeDrawable[] corners;
+	public ShapeDrawable[] squareTiles;
+	public Paint doorPaint;
+	public Paint doorPaintLast;
+	public SemiEquilateralTriangle[] doorTiles;
+	public ShapeDrawable player;
+	public Paint textPaint;
+	public Camera camera;
+	public Matrix matrix, inverse;
+	public int adjustX, adjustY;
+	
+	public int mode;
+	public int task;
+	
+	public static int IMPOSSIBLE = 0;
+	public static int NONIMPOSSIBLE = 1;
+	
+	public static int MATCH = 0;
+	public static int ENTRY = 1;
+	
+	public RoomManager roomManager;
+	
+	public Gson gson;
+	
+	// Just for matching
+	public List<Integer> pathToFollow;
+	public String status = "";
+	
+	public MemoryView(Context context) {
+		super(context);
+        setFocusable(true);
+        initMemoryView(context);
+	}
+	
+	public MemoryView(Context context, AttributeSet attrs) {
+		super(context, attrs);
+        setFocusable(true);
+        initMemoryView(context);
+	}
+	
+	public void initMemoryView(Context context) {		
+		squareTiles = new ShapeDrawable[tileGridSize * tileGridSize];
+		for (int i = 0; i < squareTiles.length; i++) {
+			squareTiles[i] = new ShapeDrawable(new RectShape());
+		}
+		
+		doorPaint = new Paint(); 
+		doorPaint.setStyle(Style.FILL);
+	    doorPaint.setColor(0xFFA52A2A);
+	    
+	    doorPaintLast = new Paint(); 
+		doorPaintLast.setStyle(Style.FILL);
+	    doorPaintLast.setColor(0xFF000000);
+		
+	    doorTiles = new SemiEquilateralTriangle[tileGridSize * tileGridSize];
+		for (int i = 0; i < doorTiles.length; i++) {
+			doorTiles[i] = new SemiEquilateralTriangle();
+		}
+		
+		player = new ShapeDrawable(new OvalShape());
+		player.getPaint().setColor(0xFF000000);
+		
+		textPaint = new Paint(); 
+	    textPaint.setColor(Color.BLACK); 
+	    textPaint.setTextSize(100);
+	    
+	    camera = new Camera();
+	    matrix = new Matrix();
+	    inverse = new Matrix();
+	    
+	    mode = IMPOSSIBLE;
+	    
+	    gson = new Gson();
+	}
+	
+	public void setMode(String modeString) {
+		if (modeString.equals(StartActivity.IMPOSSIBLE)) {
+			mode = IMPOSSIBLE;
+			roomManager = new ImpossibleRoomManager();
+		}
+		else if (modeString.equals(StartActivity.NONIMPOSSIBLE)) {
+			mode = NONIMPOSSIBLE;
+			roomManager = new NonImpossibleRoomManager();
+		}
+	}
+	
+	public void setTask(String taskString) {
+		if (taskString.equals(SetupActivity.MATCH)) {
+			task = MATCH;
+		}
+		else if (taskString.equals(SetupActivity.ENTRY)) {
+			task = ENTRY;
+		}
+	}
+	
+	@Override
+	protected void onDraw(Canvas canvas) {
+		Room currentRoom = roomManager.getCurrentRoom();
+		int[] position = currentRoom.getPosition();
+		int x = position[0];
+		int y = position[1];
+		int color = currentRoom.getColor();
+		int[][] squares = currentRoom.getOccupiedSquares();
+		List<Door> doors = currentRoom.getDoors();
+		int squareTileIndex = 0;
+		int doorTileIndex = 0;
+		int lastDoorIndex = roomManager.getLastDoorIndex();
+		
+		
+		int minX, minY, maxX, maxY;
+		minX = minY = maxX = maxY = 0;
+		for (int i = 0; i < squares.length; i++) {
+	    	int squareX = squares[i][0] - x;
+	    	int squareY = squares[i][1] - y;
+	    	
+	    	minX = Math.min(minX, squareX);
+	    	minY = Math.min(minY, squareY);
+	    	maxX = Math.max(maxX, squareX);
+	    	maxY = Math.max(maxY, squareY);
+		}
+		for (int i = 0; i < doors.size(); i++) {
+	    	int[] doorPosition = doors.get(i).getPosition();
+	    	int doorX = doorPosition[0] - x;
+	    	int doorY = doorPosition[1] - y;
+	    	
+	    	minX = Math.min(minX, doorX);
+	    	minY = Math.min(minY, doorY);
+	    	maxX = Math.max(maxX, doorX);
+	    	maxY = Math.max(maxY, doorY);
+	    }
+		adjustX = -(minX + maxX) * tileSize / 2;
+		adjustY = -(minY + maxY) * tileSize / 2;
+
+		camera.save();
+		camera.rotate((float) 35.264, 0, 45);
+		camera.getMatrix(matrix);
+		matrix.preTranslate(-centerX, -centerY);
+		matrix.postTranslate(centerX, centerY);
+		camera.restore();
+		matrix.invert(inverse);
+		canvas.concat(matrix);
+	    
+	    for (int i = 0; i < squares.length; i++) {
+	    	int squareX = squares[i][0] - x;
+	    	int squareY = squares[i][1] - y;
+	    	
+			squareTiles[squareTileIndex].setBounds(centerX + adjustX + squareX * tileSize - tileSize * 9 / 20,
+												   centerY + adjustY + squareY * tileSize - tileSize * 9 / 20,
+												   centerX + adjustX + squareX * tileSize + tileSize * 9 / 20,
+												   centerY + adjustY + squareY * tileSize + tileSize * 9 / 20);
+			squareTiles[squareTileIndex].getPaint().setColor(color);
+			squareTiles[squareTileIndex].draw(canvas);
+			squareTileIndex++;
+	    }
+	    
+	    for (int i = 0; i < doors.size(); i++) {
+	    	Door door = doors.get(i);
+	    	
+	    	int[] doorPosition = door.getPosition();
+	    	int doorDirection = door.getDirection();
+	    	int doorX = doorPosition[0] - x;
+	    	int doorY = doorPosition[1] - y;
+	    	
+	    	doorTiles[doorTileIndex].setVals(centerX + adjustX + doorX * tileSize,
+									   		 centerY + adjustY + doorY * tileSize,
+											 tileSize * 27 / 40,
+											 doorDirection);
+	    	if (i == lastDoorIndex) {
+	    		canvas.drawPath(doorTiles[doorTileIndex], doorPaintLast);
+	    	}
+	    	else {
+	    		canvas.drawPath(doorTiles[doorTileIndex], doorPaint);
+	    	}
+			doorTileIndex++;
+	    }
+	    
+	    if (lastDoorIndex >= 0) {
+	    	Door door = doors.get(lastDoorIndex);
+	    	int[] lastDoorPosition = door.getPosition();
+	    	int lastDoorDirection = door.getDirection();
+	    	int playerX = 0;
+	    	int playerY = 0;
+	    	
+	    	switch (lastDoorDirection) {
+	    		case MainActivity.LEFT:
+	    			playerX = lastDoorPosition[0] - x + 1;
+	    			playerY = lastDoorPosition[1] - y;
+	    			break;
+	    		case MainActivity.UP:
+	    			playerX = lastDoorPosition[0] - x;
+	    			playerY = lastDoorPosition[1] - y + 1;
+	    			break;
+	    		case MainActivity.RIGHT:
+	    			playerX = lastDoorPosition[0] - x - 1;
+	    			playerY = lastDoorPosition[1] - y;
+	    			break;
+	    		case MainActivity.DOWN:
+	    			playerX = lastDoorPosition[0] - x;
+	    			playerY = lastDoorPosition[1] - y - 1;
+	    			break;
+	    	}
+	    	
+		    player.setBounds(centerX + adjustX + playerX * tileSize - tileSize * 2 / 5,
+		    				 centerY + adjustY + playerY * tileSize - tileSize * 2 / 5,
+		    				 centerX + adjustX + playerX * tileSize + tileSize * 2 / 5,
+		    				 centerY + adjustY + playerY * tileSize + tileSize * 2 / 5);
+		    player.draw(canvas);
+	    }
+	    else {
+	    	player.setBounds(centerX + adjustX - tileSize * 2 / 5,
+			   				 centerY + adjustY - tileSize * 2 / 5,
+			   				 centerX + adjustX + tileSize * 2 / 5,
+			   				 centerY + adjustY + tileSize * 2 / 5);
+	    	player.draw(canvas);
+	    }
+	    
+	    canvas.restore();
+	    
+	    if (task == MATCH) {
+	    	canvas.drawText(status, 150, 200, textPaint);
+	    	status = "";
+	    }
+	    if (task == ENTRY) {
+	    	canvas.drawText("Room Number: " + Integer.toString(currentRoom.getNumber()), 150, 200, textPaint);
+	    }
+	}
+	
+	public void moveRoom(int x, int y) {
+		float[] position = new float[] {x, y};
+		inverse.mapPoints(position);
+		int tileX = Math.round(position[0]) - centerX - adjustX + tileSize / 2;
+		int tileY = Math.round(position[1]) - centerY - adjustY + tileSize / 2;
+		
+		List<Door> doors = roomManager.getCurrentRoom().getDoors();
+		for (int i = 0; i < doors.size(); i++) {
+			Door door = doors.get(i);
+			int[] doorPosition = door.getPosition();
+			
+			if ((doorPosition[0] - 0.5) * tileSize <= tileX && tileX < (doorPosition[0] + 1.5) * tileSize && 
+				(doorPosition[1] - 0.5) * tileSize <= tileY && tileY < (doorPosition[1] + 1.5) * tileSize) {
+				roomManager.processMove(i);
+			}
+		}
+		
+		invalidate();
+	}
+	
+	public void setRoomManager(String roomInfo) {
+		if (this.mode == IMPOSSIBLE) {
+			this.roomManager = gson.fromJson(roomInfo, ImpossibleRoomManager.class);
+		}
+		else {
+			this.roomManager = gson.fromJson(roomInfo, NonImpossibleRoomManager.class);
+		}
+		
+		Room room = this.roomManager.getRooms().get(0);
+		pathToFollow = this.roomManager.getPath();
+		this.roomManager.setCurrentRoom(room);
+		List<Integer> newPath = new ArrayList<Integer>();
+		newPath.add(0);
+		this.roomManager.setPath(newPath);
+		this.roomManager.setLastDoorIndex(-1);
+	}
+	
+	public boolean matchPath() {
+		List<Integer> pathUntilNow = roomManager.getPath();
+		
+		if (pathUntilNow.size() == pathToFollow.size()) {
+			for (int i = 0; i < pathUntilNow.size(); i++) {
+				if (pathUntilNow.get(i) != pathToFollow.get(i)) {
+					status = "Path is incorrect.";
+					invalidate();
+					return false;
+				}
+			}
+			
+			status = "Path is correct.";
+			invalidate();
+			return true;
+		}
+		
+		status = "Path is incorrect.";
+		invalidate();
+		return false;
+	}
+	
+	public String getRoomInfoStringified() {
+		return gson.toJson(roomManager);
+	}
+	
+	public void resetPath() {
+		Room room = this.roomManager.getRooms().get(0);
+		this.roomManager.setCurrentRoom(room);
+		List<Integer> newPath = new ArrayList<Integer>();
+		newPath.add(0);
+		this.roomManager.setPath(newPath);
+		this.roomManager.setLastDoorIndex(-1);
+		invalidate();
+	}
+}
